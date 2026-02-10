@@ -8,6 +8,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* Default fallback values */
+            --nav-height: 54px; 
+            --scroll-offset: 110px;
+        }
+
         body { font-family: 'Noto Sans SC', sans-serif; background-color: #fdfbf7; color: #333; }
         .chart-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; height: 300px; max-height: 400px; }
         .timeline-line { position: absolute; left: 1.25rem; top: 1rem; bottom: 0; width: 2px; background-color: #e5e7eb; z-index: 0; }
@@ -18,26 +24,33 @@
         .inactive-tab { color: #6b7280; }
         .metro-step::after { content: ''; position: absolute; left: 50%; bottom: -1rem; transform: translateX(-50%); width: 2px; height: 1rem; background-color: #9ca3af; }
         .metro-step:last-child::after { display: none; }
-        /* Smooth scrolling for the content container */
-        #app-content { scroll-behavior: smooth; }
-        /* CRITICAL FIX: Ensure scroll margin works for dynamic content */
-        .day-anchor { scroll-margin-top: 110px; }
+        
+        /* Global Smooth Scroll on the scroll container */
+        #app-wrapper { scroll-behavior: smooth; }
+        
+        /* FIX: Use CSS variable for scroll margin to be perfectly dynamic */
+        .day-anchor { scroll-margin-top: var(--scroll-offset); }
+        
+        /* FIX: Date nav sticky top position uses CSS variable */
+        .date-nav-sticky-style {
+            top: var(--nav-height);
+        }
     </style>
     <!-- Chosen Palette: Warm Neutrals (Background) + Festival Red (Accents) + Slate (Text) -->
     <!-- Application Structure Plan: 
          1. Dashboard: Overview stats.
          2. Itinerary: UPDATED to Single Page Scroll (Waterfall). 
-            FIXED: Uses scroll-margin-top CSS + scrollIntoView for robust positioning.
+            FIXED: Nested Sticky Headers with Dynamic Height Calculation.
          3. Packing: Checklist.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 </head>
-<body class="flex flex-col min-h-screen">
+<body class="flex flex-col min-h-screen bg-gray-100">
 
     <!-- Mobile-First Layout Container -->
-    <div class="flex-grow w-full max-w-md mx-auto bg-white shadow-xl min-h-screen flex flex-col relative overflow-hidden">
+    <div id="app-wrapper" class="w-full max-w-md mx-auto bg-white shadow-xl h-screen flex flex-col relative overflow-y-auto hide-scrollbar">
         
-        <!-- Header -->
+        <!-- Header (Scrolls away) -->
         <header class="bg-red-50 p-6 pt-10 rounded-b-3xl shadow-sm z-10 shrink-0">
             <div class="flex justify-between items-start">
                 <div>
@@ -52,15 +65,17 @@
             </div>
         </header>
 
-        <!-- Navigation Tabs (App Level) -->
-        <nav class="flex justify-around items-center bg-white border-b border-gray-100 sticky top-0 z-20 shrink-0">
+        <!-- Navigation Tabs (App Level) 
+             ADDED: id="main-nav" for height calculation
+        -->
+        <nav id="main-nav" class="sticky top-0 z-40 flex justify-around items-center bg-white border-b border-gray-100 shrink-0 shadow-sm">
             <button onclick="switchTab('dashboard')" id="tab-dashboard" class="flex-1 py-4 text-sm font-medium transition-colors active-tab">概览</button>
             <button onclick="switchTab('itinerary')" id="tab-itinerary" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">行程</button>
             <button onclick="switchTab('packing')" id="tab-packing" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">清单</button>
         </nav>
 
         <!-- Main Content Area -->
-        <main id="app-content" class="flex-grow overflow-y-auto hide-scrollbar p-4 pb-24 relative bg-[#fdfbf7]">
+        <main id="app-content" class="flex-grow p-4 pb-24 bg-[#fdfbf7] min-h-screen">
             <!-- Dynamic Content Injected Here -->
         </main>
 
@@ -211,6 +226,21 @@
         // --- State Management ---
         let currentTab = 'dashboard';
 
+        // --- Helper: Update Dynamic Heights ---
+        function updateLayoutMetrics() {
+            const nav = document.getElementById('main-nav');
+            if (nav) {
+                const navHeight = nav.offsetHeight;
+                // Set the nav height variable
+                document.documentElement.style.setProperty('--nav-height', `${navHeight}px`);
+                
+                // Estimate or measure date nav height (approx 55px) + buffer
+                // This ensures scrolling lands comfortably below both headers
+                const totalOffset = navHeight + 60; 
+                document.documentElement.style.setProperty('--scroll-offset', `${totalOffset}px`);
+            }
+        }
+
         // --- Render Functions ---
 
         function switchTab(tab) {
@@ -226,7 +256,14 @@
                     btn.classList.remove('active-tab');
                 }
             });
+            // Reset scroll position when switching tabs
+            const wrapper = document.getElementById('app-wrapper');
+            if (wrapper) wrapper.scrollTop = 0;
+            
             renderContent();
+            
+            // Recalculate metrics after rendering new content
+            setTimeout(updateLayoutMetrics, 0);
         }
 
         function renderContent() {
@@ -298,7 +335,6 @@
             // Initialize Chart after DOM injection
             setTimeout(() => {
                 const chartCanvas = document.getElementById('tripChart');
-                // Check if element exists AND Chart is loaded
                 if (chartCanvas && typeof Chart !== 'undefined') {
                     const ctx = chartCanvas.getContext('2d');
                     new Chart(ctx, {
@@ -325,9 +361,11 @@
 
         function renderItinerary(container) {
             // Anchor Nav (Sticky)
+            // Use -mx-4 and px-4 to break out of the parent's p-4 padding for a full-width sticky effect
+            // FIX: Uses 'date-nav-sticky-style' class which references CSS variable --nav-height
             const stickyWrapper = document.createElement('div');
             stickyWrapper.id = 'date-nav-sticky';
-            stickyWrapper.className = 'sticky top-0 z-50 bg-[#fdfbf7] py-2 -mx-4 px-4 shadow-sm';
+            stickyWrapper.className = 'sticky z-30 bg-[#fdfbf7] py-2 -mx-4 px-4 shadow-sm transition-all date-nav-sticky-style';
 
             const dayNav = document.createElement('div');
             dayNav.className = 'flex gap-3 overflow-x-auto hide-scrollbar';
@@ -343,7 +381,7 @@
                     const el = document.getElementById(`day-section-${day.id}`);
                     
                     if(el) {
-                        // FIX: Use scrollIntoView which respects the scroll-margin-top we set in CSS
+                        // FIX: Use scrollIntoView which respects the scroll-margin-top we set in CSS (variable)
                         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
                         // Update visual state of buttons
@@ -488,9 +526,14 @@
         }
 
         // --- Init ---
-        // Ensure scripts are loaded before rendering to prevent Chart is not defined error
+        // Ensure scripts are loaded before rendering
         window.onload = function() {
             renderContent();
+            // Initial metric calculation
+            updateLayoutMetrics();
+            
+            // Add resize listener to keep metrics updated
+            window.addEventListener('resize', updateLayoutMetrics);
         };
 
     </script>
