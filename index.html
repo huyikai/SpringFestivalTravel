@@ -39,8 +39,9 @@
     <!-- Chosen Palette: Warm Neutrals (Background) + Festival Red (Accents) + Slate (Text) -->
     <!-- Application Structure Plan: 
          1. Dashboard: Overview stats.
-         2. Itinerary: UPDATED to Single Page Scroll (Waterfall). 
-            FIXED: Nested Sticky Headers with Dynamic Height Calculation.
+         2. Itinerary: UPDATED.
+            FIXED: Structural Change. Date Nav moved OUT of content area to be a sibling of Main Nav.
+            This ensures 100% stable sticky stacking.
          3. Packing: Checklist.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
@@ -65,14 +66,18 @@
             </div>
         </header>
 
-        <!-- Navigation Tabs (App Level) 
-             ADDED: id="main-nav" for height calculation
-        -->
-        <nav id="main-nav" class="sticky top-0 z-40 flex justify-around items-center bg-white border-b border-gray-100 shrink-0 shadow-sm">
+        <!-- Navigation Tabs (App Level) -->
+        <nav id="main-nav" class="sticky top-0 z-40 flex justify-around items-center bg-white border-b border-gray-100 shrink-0 shadow-sm transition-all">
             <button onclick="switchTab('dashboard')" id="tab-dashboard" class="flex-1 py-4 text-sm font-medium transition-colors active-tab">概览</button>
             <button onclick="switchTab('itinerary')" id="tab-itinerary" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">行程</button>
             <button onclick="switchTab('packing')" id="tab-packing" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">清单</button>
         </nav>
+        
+        <!-- NEW: Dedicated Sticky Sub-Nav Container (Hidden by default) -->
+        <!-- This sits directly in the app wrapper flow, ensuring perfect stickiness below main nav -->
+        <div id="sub-nav-container" class="sticky z-30 bg-[#fdfbf7] py-2 px-4 shadow-sm transition-all hidden date-nav-sticky-style border-b border-gray-100">
+            <!-- Date buttons will be injected here -->
+        </div>
 
         <!-- Main Content Area -->
         <main id="app-content" class="flex-grow p-4 pb-24 bg-[#fdfbf7] min-h-screen">
@@ -229,14 +234,19 @@
         // --- Helper: Update Dynamic Heights ---
         function updateLayoutMetrics() {
             const nav = document.getElementById('main-nav');
+            const subNav = document.getElementById('sub-nav-container');
             if (nav) {
                 const navHeight = nav.offsetHeight;
                 // Set the nav height variable
                 document.documentElement.style.setProperty('--nav-height', `${navHeight}px`);
                 
-                // Estimate or measure date nav height (approx 55px) + buffer
-                // This ensures scrolling lands comfortably below both headers
-                const totalOffset = navHeight + 60; 
+                // Estimate Date Nav Height dynamically if visible
+                let subNavHeight = 60; // default
+                if (subNav && !subNav.classList.contains('hidden')) {
+                    subNavHeight = subNav.offsetHeight;
+                }
+
+                const totalOffset = navHeight + subNavHeight + 10; 
                 document.documentElement.style.setProperty('--scroll-offset', `${totalOffset}px`);
             }
         }
@@ -245,6 +255,8 @@
 
         function switchTab(tab) {
             currentTab = tab;
+            const subNav = document.getElementById('sub-nav-container');
+
             // Update UI styles
             ['dashboard', 'itinerary', 'packing'].forEach(t => {
                 const btn = document.getElementById(`tab-${t}`);
@@ -256,14 +268,22 @@
                     btn.classList.remove('active-tab');
                 }
             });
+
+            // Toggle Sub Nav visibility
+            if (tab === 'itinerary') {
+                subNav.classList.remove('hidden');
+            } else {
+                subNav.classList.add('hidden');
+            }
+
             // Reset scroll position when switching tabs
             const wrapper = document.getElementById('app-wrapper');
             if (wrapper) wrapper.scrollTop = 0;
             
             renderContent();
             
-            // Recalculate metrics after rendering new content
-            setTimeout(updateLayoutMetrics, 0);
+            // Recalculate metrics after rendering new content and showing/hiding subNav
+            setTimeout(updateLayoutMetrics, 50);
         }
 
         function renderContent() {
@@ -360,12 +380,9 @@
         }
 
         function renderItinerary(container) {
-            // Anchor Nav (Sticky)
-            // Use -mx-4 and px-4 to break out of the parent's p-4 padding for a full-width sticky effect
-            // FIX: Uses 'date-nav-sticky-style' class which references CSS variable --nav-height
-            const stickyWrapper = document.createElement('div');
-            stickyWrapper.id = 'date-nav-sticky';
-            stickyWrapper.className = 'sticky z-30 bg-[#fdfbf7] py-2 -mx-4 px-4 shadow-sm transition-all date-nav-sticky-style';
+            // POPULATE THE STICKY HEADER (NOW OUTSIDE)
+            const subNav = document.getElementById('sub-nav-container');
+            subNav.innerHTML = ''; // Clear previous
 
             const dayNav = document.createElement('div');
             dayNav.className = 'flex gap-3 overflow-x-auto hide-scrollbar';
@@ -379,12 +396,10 @@
 
                 btn.onclick = (e) => { 
                     const el = document.getElementById(`day-section-${day.id}`);
-                    
                     if(el) {
-                        // FIX: Use scrollIntoView which respects the scroll-margin-top we set in CSS (variable)
                         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                        // Update visual state of buttons
+                        // Update visual state
                         document.querySelectorAll('[id^="btn-day-"]').forEach(b => {
                             b.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
                         });
@@ -393,10 +408,9 @@
                 };
                 dayNav.appendChild(btn);
             });
-            stickyWrapper.appendChild(dayNav);
-            container.appendChild(stickyWrapper);
+            subNav.appendChild(dayNav);
 
-            // Waterfall List
+            // RENDER WATERFALL LIST
             const listContainer = document.createElement('div');
             listContainer.className = 'pb-10 pt-2';
 
