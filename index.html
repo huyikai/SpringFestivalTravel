@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 春节北京·崇礼冰雪之旅</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #fdfbf7; color: #333; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; height: 300px; max-height: 400px; }
+        .timeline-line { position: absolute; left: 1.25rem; top: 1rem; bottom: 0; width: 2px; background-color: #e5e7eb; z-index: 0; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+        .active-tab { border-bottom: 2px solid #ef4444; color: #ef4444; font-weight: 600; }
+        .inactive-tab { color: #6b7280; }
+        .metro-step::after { content: ''; position: absolute; left: 50%; bottom: -1rem; transform: translateX(-50%); width: 2px; height: 1rem; background-color: #9ca3af; }
+        .metro-step:last-child::after { display: none; }
+        /* Smooth scrolling for the content container */
+        #app-content { scroll-behavior: smooth; }
+        /* CRITICAL FIX: Ensure scroll margin works for dynamic content */
+        .day-anchor { scroll-margin-top: 110px; }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals (Background) + Festival Red (Accents) + Slate (Text) -->
+    <!-- Application Structure Plan: 
+         1. Dashboard: Overview stats.
+         2. Itinerary: UPDATED to Single Page Scroll (Waterfall). 
+            FIXED: Uses scroll-margin-top CSS + scrollIntoView for robust positioning.
+         3. Packing: Checklist.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Mobile-First Layout Container -->
+    <div class="flex-grow w-full max-w-md mx-auto bg-white shadow-xl min-h-screen flex flex-col relative overflow-hidden">
+        
+        <!-- Header -->
+        <header class="bg-red-50 p-6 pt-10 rounded-b-3xl shadow-sm z-10 shrink-0">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-sm font-bold text-red-500 tracking-widest uppercase mb-1">2026 春节路书</h2>
+                    <h1 class="text-2xl font-bold text-gray-800">北京·崇礼滑雪之旅</h1>
+                    <p class="text-gray-500 text-sm mt-1">义凯 & 文磊 | 2月19日 - 22日</p>
+                </div>
+                <div class="bg-white p-2 rounded-xl shadow-sm text-center min-w-[60px]">
+                    <span class="block text-xs text-gray-400">天数</span>
+                    <span class="block text-xl font-bold text-gray-800">4</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs (App Level) -->
+        <nav class="flex justify-around items-center bg-white border-b border-gray-100 sticky top-0 z-20 shrink-0">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="flex-1 py-4 text-sm font-medium transition-colors active-tab">概览</button>
+            <button onclick="switchTab('itinerary')" id="tab-itinerary" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">行程</button>
+            <button onclick="switchTab('packing')" id="tab-packing" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">清单</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="app-content" class="flex-grow overflow-y-auto hide-scrollbar p-4 pb-24 relative bg-[#fdfbf7]">
+            <!-- Dynamic Content Injected Here -->
+        </main>
+
+        <!-- Footer -->
+        <footer class="p-4 text-center text-xs text-gray-300 bg-gray-50 border-t border-gray-100 shrink-0">
+            Design for Mobile View • Spring Festival 2026
+        </footer>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- Data Store ---
+        const tripData = {
+            overview: {
+                stats: { travel: 10, activity: 22, rest: 35, food: 8 }
+            },
+            days: [
+                {
+                    id: 1,
+                    date: "2月19日 初三",
+                    title: "抵京 & 威斯汀度假",
+                    highlight: "高铁前往北京，入住东三环，享受老北京铜锅涮肉。",
+                    events: [
+                        { time: "13:18", type: "transport", title: "高铁 G72", detail: "青岛北 -> 北京南", sub: "02车 14D/14F (3小时3分)" },
+                        { 
+                            time: "16:30", 
+                            type: "metro", 
+                            title: "前往威斯汀酒店", 
+                            detail: "北京南站 -> 威斯汀酒店", 
+                            duration: "约50分钟",
+                            route: [
+                                { line: "14号线", from: "北京南站", to: "十里河站", stops: "5站" },
+                                { line: "10号线", from: "十里河站", to: "亮马桥站", stops: "9站" },
+                                { line: "步行", info: "C口出站即达" }
+                            ]
+                        },
+                        { time: "17:30", type: "hotel", title: "办理入住", detail: "北京威斯汀酒店 (燕莎)", sub: "确认早餐 & 泳池" },
+                        { 
+                            time: "19:00", 
+                            type: "food", 
+                            title: "晚餐：南门涮肉", 
+                            detail: "朝阳公园店 / 老式铜锅涮肉", 
+                            sub: "或者去团结湖吃厚味居炙子烤肉。推荐打车前往（10-15分钟）。" 
+                        }
+                    ]
+                },
+                {
+                    id: 2,
+                    date: "2月20日 初四",
+                    title: "泡泡玛特 & 奔赴雪场",
+                    highlight: "打卡Pop Land，全聚德外卖策略，高铁前往崇礼。",
+                    events: [
+                        { time: "09:30", type: "hotel", title: "退房 & 寄存", detail: "行李寄存在酒店礼宾部", sub: "轻装出发去乐园" },
+                        { 
+                            time: "10:00", 
+                            type: "activity", 
+                            title: "泡泡玛特城市乐园", 
+                            detail: "朝阳公园西3门", 
+                            sub: "必玩：MOLLY城堡心愿之旅。必逛：城堡商店买限定盲盒。" 
+                        },
+                        { 
+                            time: "13:30", 
+                            type: "food", 
+                            title: "点全聚德外卖", 
+                            detail: "定点投喂：威斯汀礼宾部", 
+                            sub: "搜'三元桥店'或'团结湖店'，备注14:30送达。避免排队神器！" 
+                        },
+                        { time: "14:30", type: "hotel", title: "取行李 & 外卖", detail: "回到酒店拿装备和烤鸭" },
+                        { 
+                            time: "15:10", 
+                            type: "metro", 
+                            title: "极限转场：去清河站", 
+                            detail: "威斯汀 -> 清河站", 
+                            duration: "约51分钟 (红线时间!)",
+                            route: [
+                                { line: "10号线", from: "亮马桥", to: "西土城", stops: "9站" },
+                                { line: "昌平线", from: "西土城", to: "清河站", stops: "6站" }
+                            ]
+                        },
+                        { time: "16:39", type: "transport", title: "高铁 D9277", detail: "清河 -> 太子城", sub: "08车 04DF。车上吃烤鸭🦆" },
+                        { time: "18:00", type: "hotel", title: "入住太舞南山里", detail: "崇礼太舞滑雪小镇", sub: "坐免费接驳车进小镇。确认含早/雪票。" }
+                    ]
+                },
+                {
+                    id: 3,
+                    date: "2月21日 初五",
+                    title: "全天滑雪 & 回京",
+                    highlight: "太舞畅滑一天，晚上回京入住南锣鼓巷，感受胡同夜生活。",
+                    events: [
+                        { time: "09:00", type: "activity", title: "太舞滑雪时光", detail: "全天滑雪", sub: "租雪具 -> 换装备 -> 开滑！午餐不吃，专心滑雪。" },
+                        { time: "16:30", type: "transport", title: "前往火车站", detail: "坐接驳车去太子城站", sub: "预留充足时间退房/还雪具" },
+                        { time: "18:10", type: "transport", title: "高铁 D9278", detail: "太子城 -> 清河", sub: "08车 05DF" },
+                        { 
+                            time: "19:10", 
+                            type: "metro", 
+                            title: "前往全季酒店", 
+                            detail: "清河 -> 安定门", 
+                            duration: "约45分钟",
+                            route: [
+                                { line: "13号线", from: "清河", to: "西直门", stops: "5站" },
+                                { line: "2号线", from: "西直门", to: "安定门", stops: "3站" },
+                                { line: "步行", info: "A口(西北口)出，向南400米" }
+                            ]
+                        },
+                        { time: "20:30", type: "hotel", title: "入住全季", detail: "南锣鼓巷安定门地铁站店", sub: "宵夜：南锣附近小吃" }
+                    ]
+                },
+                {
+                    id: 4,
+                    date: "2月22日 初六",
+                    title: "京味Citywalk & 返程",
+                    highlight: "地道豆汁儿焦圈，漫步什刹海胡同，打卡中轴线。",
+                    events: [
+                        { time: "08:00", type: "food", title: "碳水爆炸早餐", detail: "增盛魁小吃 or 姚记炒肝", sub: "退房寄存行李在酒店。推荐糖油饼、豆腐脑。" },
+                        { time: "09:30", type: "activity", title: "胡同Citywalk", detail: "什刹海周边", sub: "鼓楼 -> 烟袋斜街 -> 银锭桥 -> 宋庆龄故居" },
+                        { 
+                            time: "12:00", 
+                            type: "activity", 
+                            title: "北中轴线漫步", 
+                            detail: "雍和宫 / 国子监", 
+                            sub: "五道营胡同喝咖啡。避免折返跑，不推荐去国博（太远+难约）。" 
+                        },
+                        { time: "17:00", type: "hotel", title: "回酒店取行李", detail: "回到全季取行李", sub: "必须准时！" },
+                        { 
+                            time: "17:30", 
+                            type: "metro", 
+                            title: "前往北京南站", 
+                            detail: "安定门 -> 北京南站", 
+                            duration: "约47分钟",
+                            route: [
+                                { line: "2号线", from: "安定门", to: "宣武门", stops: "8站" },
+                                { line: "4号线", from: "宣武门", to: "北京南站", stops: "3站" }
+                            ]
+                        },
+                        { time: "19:36", type: "transport", title: "高铁 G891", detail: "北京南 -> 青岛北", sub: "回家啦！👋" }
+                    ]
+                }
+            ],
+            packing: [
+                { cat: "证件", items: ["身份证 (必须带!)", "驾照 (如有租车需求)"] },
+                { cat: "滑雪装备", items: ["速干衣/裤 (贴身)", "滑雪袜 (厚毛巾袜)", "防水手套", "护脸/面罩", "雪镜 (可选)", "头盔 (建议自带或租)", "内护(护臀/护膝)"] },
+                { cat: "衣物", items: ["泳衣/泳帽 (威斯汀)", "换洗内衣裤", "保暖外套", "舒适走路鞋"] },
+                { cat: "电子", items: ["充电宝 (乐园/低温费电)", "充电器", "耳机"] },
+                { cat: "个护", items: ["高保湿面霜 (北京极干)", "润唇膏", "防晒霜 (雪场紫外线强)", "面膜"] }
+            ]
+        };
+
+        // --- State Management ---
+        let currentTab = 'dashboard';
+
+        // --- Render Functions ---
+
+        function switchTab(tab) {
+            currentTab = tab;
+            // Update UI styles
+            ['dashboard', 'itinerary', 'packing'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === tab) {
+                    btn.classList.remove('inactive-tab');
+                    btn.classList.add('active-tab');
+                } else {
+                    btn.classList.add('inactive-tab');
+                    btn.classList.remove('active-tab');
+                }
+            });
+            renderContent();
+        }
+
+        function renderContent() {
+            const container = document.getElementById('app-content');
+            container.innerHTML = '';
+
+            if (currentTab === 'dashboard') {
+                renderDashboard(container);
+            } else if (currentTab === 'itinerary') {
+                renderItinerary(container);
+            } else if (currentTab === 'packing') {
+                renderPackingList(container);
+            }
+        }
+
+        function renderDashboard(container) {
+            // Intro Section
+            const intro = document.createElement('div');
+            intro.className = 'mb-6';
+            intro.innerHTML = `
+                <div class="bg-gradient-to-r from-red-500 to-orange-400 rounded-2xl p-6 text-white shadow-lg mb-6">
+                    <h3 class="font-bold text-lg mb-2">🎉 距离出发还有...</h3>
+                    <p class="text-sm opacity-90 mb-4">准备好迎接滑雪和烤鸭了吗？</p>
+                    <div class="flex gap-4 text-center">
+                        <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
+                            <span class="block text-2xl font-bold">19</span>
+                            <span class="text-xs opacity-80">2月</span>
+                        </div>
+                        <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
+                            <span class="block text-2xl font-bold">北京</span>
+                            <span class="text-xs opacity-80">目的地</span>
+                        </div>
+                        <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
+                            <span class="block text-2xl font-bold">崇礼</span>
+                            <span class="text-xs opacity-80">滑雪</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(intro);
+
+            // Chart Section
+            const chartSection = document.createElement('div');
+            chartSection.className = 'bg-white rounded-2xl p-6 card-shadow mb-6';
+            chartSection.innerHTML = `
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="mr-2 text-xl">📊</span> 行程时间分配
+                </h3>
+                <p class="text-xs text-gray-500 mb-4">通过分析4天行程，看看我们的时间花在哪儿了。</p>
+                <div class="chart-container">
+                    <canvas id="tripChart"></canvas>
+                </div>
+            `;
+            container.appendChild(chartSection);
+
+            // Important Reminders
+            const reminders = document.createElement('div');
+            reminders.className = 'bg-yellow-50 border border-yellow-100 rounded-2xl p-6';
+            reminders.innerHTML = `
+                <h3 class="font-bold text-yellow-800 mb-3 flex items-center">⚠️ 重要提醒</h3>
+                <ul class="space-y-2 text-sm text-yellow-700">
+                    <li class="flex items-start"><span class="mr-2">🔹</span>国博需提前7天预约 (每日17:00放票)</li>
+                    <li class="flex items-start"><span class="mr-2">🔹</span>初四记得点全聚德外卖送到威斯汀</li>
+                    <li class="flex items-start"><span class="mr-2">🔹</span>记得带泳衣 (威斯汀) 和高保湿霜</li>
+                </ul>
+            `;
+            container.appendChild(reminders);
+
+            // Initialize Chart after DOM injection
+            setTimeout(() => {
+                const chartCanvas = document.getElementById('tripChart');
+                // Check if element exists AND Chart is loaded
+                if (chartCanvas && typeof Chart !== 'undefined') {
+                    const ctx = chartCanvas.getContext('2d');
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['路途交通', '游玩/滑雪', '睡眠/休息', '美食探索'],
+                            datasets: [{
+                                data: [tripData.overview.stats.travel, tripData.overview.stats.activity, tripData.overview.stats.rest, tripData.overview.stats.food],
+                                backgroundColor: ['#94a3b8', '#f87171', '#e2e8f0', '#fbbf24'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }
+                            }
+                        }
+                    });
+                }
+            }, 0);
+        }
+
+        function renderItinerary(container) {
+            // Anchor Nav (Sticky)
+            const stickyWrapper = document.createElement('div');
+            stickyWrapper.id = 'date-nav-sticky';
+            stickyWrapper.className = 'sticky top-0 z-50 bg-[#fdfbf7] py-2 -mx-4 px-4 shadow-sm';
+
+            const dayNav = document.createElement('div');
+            dayNav.className = 'flex gap-3 overflow-x-auto hide-scrollbar';
+
+            tripData.days.forEach(day => {
+                const btn = document.createElement('button');
+                btn.id = `btn-day-${day.id}`;
+                // Default style
+                btn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
+                btn.innerText = day.date.split(' ')[0]; // Just the date part
+
+                btn.onclick = (e) => { 
+                    const el = document.getElementById(`day-section-${day.id}`);
+                    
+                    if(el) {
+                        // FIX: Use scrollIntoView which respects the scroll-margin-top we set in CSS
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                        // Update visual state of buttons
+                        document.querySelectorAll('[id^="btn-day-"]').forEach(b => {
+                            b.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
+                        });
+                        e.currentTarget.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-red-500 text-white border-red-500 shadow-md transform scale-105`;
+                    }
+                };
+                dayNav.appendChild(btn);
+            });
+            stickyWrapper.appendChild(dayNav);
+            container.appendChild(stickyWrapper);
+
+            // Waterfall List
+            const listContainer = document.createElement('div');
+            listContainer.className = 'pb-10 pt-2';
+
+            tripData.days.forEach((day, index) => {
+                const daySection = document.createElement('div');
+                daySection.id = `day-section-${day.id}`;
+                // FIX: Add 'day-anchor' class which has the scroll-margin-top CSS
+                daySection.className = 'mb-12 relative day-anchor';
+
+                // Day Header
+                const header = document.createElement('div');
+                header.className = 'mb-6 px-2 flex items-center';
+                header.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
+                        ${day.id}
+                    </div>
+                    <div class="ml-4">
+                        <h2 class="text-xl font-bold text-gray-800">${day.date}</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">${day.title}</p>
+                    </div>
+                `;
+                daySection.appendChild(header);
+
+                // Timeline Line (Per day to ensure clean visual breaks)
+                const timelineContainer = document.createElement('div');
+                timelineContainer.className = 'relative pl-4';
+                const line = document.createElement('div');
+                line.className = 'timeline-line'; // Re-using CSS class but scoping it here
+                timelineContainer.appendChild(line);
+
+                day.events.forEach(event => {
+                    const item = document.createElement('div');
+                    item.className = 'relative mb-8 pl-8';
+                    
+                    // Icon based on type
+                    let icon = '📍';
+                    let iconBg = 'bg-gray-100';
+                    if (event.type === 'transport') { icon = '🚄'; iconBg = 'bg-blue-100'; }
+                    if (event.type === 'metro') { icon = '🚇'; iconBg = 'bg-indigo-100'; }
+                    if (event.type === 'hotel') { icon = '🏨'; iconBg = 'bg-purple-100'; }
+                    if (event.type === 'food') { icon = '🍜'; iconBg = 'bg-yellow-100'; }
+                    if (event.type === 'activity') { icon = '🎡'; iconBg = 'bg-red-100'; }
+
+                    // Check for Metro Route Data to render special block
+                    let extraContent = '';
+                    if (event.route) {
+                        const stepsHtml = event.route.map((step, idx) => {
+                            if (step.line === '步行') {
+                                return `<div class="flex items-center text-xs text-gray-500 mt-2">
+                                    <span class="mr-2">🚶</span> ${step.info}
+                                </div>`;
+                            }
+                            return `
+                            <div class="relative pl-6 pb-4 border-l-2 border-gray-300 last:border-0 last:pb-0 metro-step">
+                                <div class="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-gray-400"></div>
+                                <div class="font-bold text-gray-700 text-sm">${step.line}</div>
+                                <div class="flex justify-between text-xs text-gray-500">
+                                    <span>${step.from} → ${step.to}</span>
+                                    <span class="bg-gray-100 px-1 rounded">${step.stops || ''}</span>
+                                </div>
+                            </div>`;
+                        }).join('');
+                        
+                        extraContent = `
+                            <div class="mt-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                <div class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-wider">路线详情</div>
+                                ${stepsHtml}
+                            </div>
+                        `;
+                    }
+
+                    item.innerHTML = `
+                        <div class="absolute left-0 top-0 w-10 h-10 rounded-full ${iconBg} flex items-center justify-center border-4 border-white z-10 shadow-sm text-lg">
+                            ${icon}
+                        </div>
+                        <div class="bg-white p-4 rounded-xl card-shadow">
+                            <div class="flex justify-between items-start mb-1">
+                                <h4 class="font-bold text-gray-800 text-base">${event.title}</h4>
+                                <span class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">${event.time}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 font-medium">${event.detail}</p>
+                            ${event.duration ? `<p class="text-xs text-blue-500 mt-1 flex items-center">⏱️ ${event.duration}</p>` : ''}
+                            ${event.sub ? `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-50">${event.sub}</p>` : ''}
+                            ${extraContent}
+                        </div>
+                    `;
+                    timelineContainer.appendChild(item);
+                });
+
+                daySection.appendChild(timelineContainer);
+                listContainer.appendChild(daySection);
+            });
+
+            container.appendChild(listContainer);
+        }
+
+        function renderPackingList(container) {
+            const intro = document.createElement('p');
+            intro.className = 'text-sm text-gray-500 mb-6';
+            intro.innerText = '出发前检查一遍，确保万无一失。点击勾选 ✅';
+            container.appendChild(intro);
+
+            tripData.packing.forEach(category => {
+                const section = document.createElement('div');
+                section.className = 'mb-6 bg-white rounded-xl p-4 card-shadow';
+                
+                const title = document.createElement('h3');
+                title.className = 'font-bold text-gray-800 mb-3 flex items-center';
+                title.innerHTML = `<span class="w-2 h-6 bg-red-500 rounded-full mr-3"></span>${category.cat}`;
+                section.appendChild(title);
+
+                const list = document.createElement('ul');
+                category.items.forEach((item, idx) => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center py-2 border-b border-gray-50 last:border-0';
+                    const id = `item-${category.cat}-${idx}`;
+                    // Simple local state logic could be added here
+                    li.innerHTML = `
+                        <input type="checkbox" id="${id}" class="w-5 h-5 rounded border-gray-300 text-red-500 focus:ring-red-500 mr-3 cursor-pointer">
+                        <label for="${id}" class="text-sm text-gray-600 cursor-pointer select-none flex-1">${item}</label>
+                    `;
+                    list.appendChild(li);
+                });
+                section.appendChild(list);
+                container.appendChild(section);
+            });
+        }
+
+        // --- Init ---
+        // Ensure scripts are loaded before rendering to prevent Chart is not defined error
+        window.onload = function() {
+            renderContent();
+        };
+
+    </script>
+</body>
+</html>
