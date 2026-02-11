@@ -11,7 +11,7 @@
         :root {
             /* Default fallback values */
             --nav-height: 54px; 
-            --scroll-offset: 110px;
+            --scroll-offset: 115px; /* Matches the visual sticky height */
         }
 
         body { font-family: 'Noto Sans SC', sans-serif; background-color: #fdfbf7; color: #333; }
@@ -40,8 +40,8 @@
     <!-- Application Structure Plan: 
          1. Dashboard: Overview stats.
          2. Itinerary: UPDATED.
-            FIXED: Structural Change. Date Nav moved OUT of content area to be a sibling of Main Nav.
-            This ensures 100% stable sticky stacking.
+            FIXED: "Click vs Scroll" Conflict.
+            Added a robust "isScrollingByClick" lock to prevent Scroll Spy from interfering during click navigation.
          3. Packing: Checklist.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
@@ -73,8 +73,7 @@
             <button onclick="switchTab('packing')" id="tab-packing" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">清单</button>
         </nav>
         
-        <!-- NEW: Dedicated Sticky Sub-Nav Container (Hidden by default) -->
-        <!-- This sits directly in the app wrapper flow, ensuring perfect stickiness below main nav -->
+        <!-- Sticky Sub-Nav Container -->
         <div id="sub-nav-container" class="sticky z-30 bg-[#fdfbf7] py-2 px-4 shadow-sm transition-all hidden date-nav-sticky-style border-b border-gray-100">
             <!-- Date buttons will be injected here -->
         </div>
@@ -220,7 +219,7 @@
                 }
             ],
             packing: [
-                { cat: "证件", items: ["身份证 (必须带!)"] },
+                { cat: "证件", items: ["身份证 (必须带!)", "驾照 (如有租车需求)"] },
                 { cat: "滑雪装备", items: ["速干衣/裤 (贴身)", "滑雪袜 (厚毛巾袜)", "防水手套", "护脸/面罩", "雪镜 (可选)", "头盔 (建议自带或租)", "内护(护臀/护膝)"] },
                 { cat: "衣物", items: ["泳衣/泳帽 (威斯汀)", "换洗内衣裤", "保暖外套", "舒适走路鞋"] },
                 { cat: "电子", items: ["充电宝 (乐园/低温费电)", "充电器", "耳机"] },
@@ -230,6 +229,9 @@
 
         // --- State Management ---
         let currentTab = 'dashboard';
+        let isScrollingByClick = false; // LOCK Flag
+        let scrollTimeout = null;
+        let itineraryScrollListener = null;
 
         // --- Helper: Update Dynamic Heights ---
         function updateLayoutMetrics() {
@@ -237,17 +239,28 @@
             const subNav = document.getElementById('sub-nav-container');
             if (nav) {
                 const navHeight = nav.offsetHeight;
-                // Set the nav height variable
                 document.documentElement.style.setProperty('--nav-height', `${navHeight}px`);
                 
-                // Estimate Date Nav Height dynamically if visible
-                let subNavHeight = 60; // default
+                let subNavHeight = 60; // default estimate
                 if (subNav && !subNav.classList.contains('hidden')) {
                     subNavHeight = subNav.offsetHeight;
                 }
-
+                // Calculate total offset for scroll-margin-top
                 const totalOffset = navHeight + subNavHeight + 10; 
                 document.documentElement.style.setProperty('--scroll-offset', `${totalOffset}px`);
+            }
+        }
+
+        // --- Helper: Highlight Active Button ---
+        function highlightActiveButton(activeId) {
+            document.querySelectorAll('[id^="btn-day-"]').forEach(b => {
+                b.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
+            });
+            const activeBtn = document.getElementById(`btn-day-${activeId}`);
+            if (activeBtn) {
+                activeBtn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-red-500 text-white border-red-500 shadow-md transform scale-105`;
+                // Ensure the active button is visible in horizontal scroll
+                activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             }
         }
 
@@ -256,8 +269,15 @@
         function switchTab(tab) {
             currentTab = tab;
             const subNav = document.getElementById('sub-nav-container');
+            const wrapper = document.getElementById('app-wrapper');
 
-            // Update UI styles
+            // Cleanup old listener
+            if (itineraryScrollListener) {
+                wrapper.removeEventListener('scroll', itineraryScrollListener);
+                itineraryScrollListener = null;
+            }
+
+            // Update Tab UI
             ['dashboard', 'itinerary', 'packing'].forEach(t => {
                 const btn = document.getElementById(`tab-${t}`);
                 if (t === tab) {
@@ -269,20 +289,16 @@
                 }
             });
 
-            // Toggle Sub Nav visibility
+            // Toggle Sub Nav
             if (tab === 'itinerary') {
                 subNav.classList.remove('hidden');
             } else {
                 subNav.classList.add('hidden');
             }
 
-            // Reset scroll position when switching tabs
-            const wrapper = document.getElementById('app-wrapper');
             if (wrapper) wrapper.scrollTop = 0;
             
             renderContent();
-            
-            // Recalculate metrics after rendering new content and showing/hiding subNav
             setTimeout(updateLayoutMetrics, 50);
         }
 
@@ -300,7 +316,6 @@
         }
 
         function renderDashboard(container) {
-            // Intro Section
             const intro = document.createElement('div');
             intro.className = 'mb-6';
             intro.innerHTML = `
@@ -325,7 +340,6 @@
             `;
             container.appendChild(intro);
 
-            // Chart Section
             const chartSection = document.createElement('div');
             chartSection.className = 'bg-white rounded-2xl p-6 card-shadow mb-6';
             chartSection.innerHTML = `
@@ -339,7 +353,6 @@
             `;
             container.appendChild(chartSection);
 
-            // Important Reminders
             const reminders = document.createElement('div');
             reminders.className = 'bg-yellow-50 border border-yellow-100 rounded-2xl p-6';
             reminders.innerHTML = `
@@ -352,7 +365,6 @@
             `;
             container.appendChild(reminders);
 
-            // Initialize Chart after DOM injection
             setTimeout(() => {
                 const chartCanvas = document.getElementById('tripChart');
                 if (chartCanvas && typeof Chart !== 'undefined') {
@@ -367,22 +379,16 @@
                                 borderWidth: 0
                             }]
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }
-                            }
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } }
                     });
                 }
             }, 0);
         }
 
         function renderItinerary(container) {
-            // POPULATE THE STICKY HEADER (NOW OUTSIDE)
+            // 1. POPULATE STICKY SUB-NAV
             const subNav = document.getElementById('sub-nav-container');
-            subNav.innerHTML = ''; // Clear previous
+            subNav.innerHTML = ''; 
 
             const dayNav = document.createElement('div');
             dayNav.className = 'flex gap-3 overflow-x-auto hide-scrollbar';
@@ -390,62 +396,59 @@
             tripData.days.forEach(day => {
                 const btn = document.createElement('button');
                 btn.id = `btn-day-${day.id}`;
-                // Default style
                 btn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
-                btn.innerText = day.date.split(' ')[0]; // Just the date part
+                btn.innerText = day.date.split(' ')[0];
 
+                // CLICK HANDLER WITH LOCK
                 btn.onclick = (e) => { 
+                    isScrollingByClick = true; // LOCK scroll spy
+                    
                     const el = document.getElementById(`day-section-${day.id}`);
                     if(el) {
+                        // Immediately highlight clicked button
+                        highlightActiveButton(day.id);
+                        
+                        // Scroll to element
                         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                        // Update visual state
-                        document.querySelectorAll('[id^="btn-day-"]').forEach(b => {
-                            b.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
-                        });
-                        e.currentTarget.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-red-500 text-white border-red-500 shadow-md transform scale-105`;
+                        // Release lock after animation finishes (approx 800-1000ms)
+                        if(scrollTimeout) clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(() => {
+                            isScrollingByClick = false;
+                        }, 1000); 
                     }
                 };
                 dayNav.appendChild(btn);
             });
             subNav.appendChild(dayNav);
 
-            // RENDER WATERFALL LIST
+            // 2. RENDER CONTENT
             const listContainer = document.createElement('div');
             listContainer.className = 'pb-10 pt-2';
 
             tripData.days.forEach((day, index) => {
                 const daySection = document.createElement('div');
                 daySection.id = `day-section-${day.id}`;
-                // FIX: Add 'day-anchor' class which has the scroll-margin-top CSS
-                daySection.className = 'mb-12 relative day-anchor';
+                daySection.className = 'mb-12 relative day-anchor'; 
 
-                // Day Header
                 const header = document.createElement('div');
                 header.className = 'mb-6 px-2 flex items-center';
                 header.innerHTML = `
-                    <div class="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
-                        ${day.id}
-                    </div>
-                    <div class="ml-4">
-                        <h2 class="text-xl font-bold text-gray-800">${day.date}</h2>
-                        <p class="text-xs text-gray-500 mt-0.5">${day.title}</p>
-                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">${day.id}</div>
+                    <div class="ml-4"><h2 class="text-xl font-bold text-gray-800">${day.date}</h2><p class="text-xs text-gray-500 mt-0.5">${day.title}</p></div>
                 `;
                 daySection.appendChild(header);
 
-                // Timeline Line (Per day to ensure clean visual breaks)
                 const timelineContainer = document.createElement('div');
                 timelineContainer.className = 'relative pl-4';
                 const line = document.createElement('div');
-                line.className = 'timeline-line'; // Re-using CSS class but scoping it here
+                line.className = 'timeline-line'; 
                 timelineContainer.appendChild(line);
 
                 day.events.forEach(event => {
                     const item = document.createElement('div');
                     item.className = 'relative mb-8 pl-8';
                     
-                    // Icon based on type
                     let icon = '📍';
                     let iconBg = 'bg-gray-100';
                     if (event.type === 'transport') { icon = '🚄'; iconBg = 'bg-blue-100'; }
@@ -454,43 +457,19 @@
                     if (event.type === 'food') { icon = '🍜'; iconBg = 'bg-yellow-100'; }
                     if (event.type === 'activity') { icon = '🎡'; iconBg = 'bg-red-100'; }
 
-                    // Check for Metro Route Data to render special block
                     let extraContent = '';
                     if (event.route) {
-                        const stepsHtml = event.route.map((step, idx) => {
-                            if (step.line === '步行') {
-                                return `<div class="flex items-center text-xs text-gray-500 mt-2">
-                                    <span class="mr-2">🚶</span> ${step.info}
-                                </div>`;
-                            }
-                            return `
-                            <div class="relative pl-6 pb-4 border-l-2 border-gray-300 last:border-0 last:pb-0 metro-step">
-                                <div class="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-gray-400"></div>
-                                <div class="font-bold text-gray-700 text-sm">${step.line}</div>
-                                <div class="flex justify-between text-xs text-gray-500">
-                                    <span>${step.from} → ${step.to}</span>
-                                    <span class="bg-gray-100 px-1 rounded">${step.stops || ''}</span>
-                                </div>
-                            </div>`;
+                        const stepsHtml = event.route.map(step => {
+                            if (step.line === '步行') return `<div class="flex items-center text-xs text-gray-500 mt-2"><span class="mr-2">🚶</span> ${step.info}</div>`;
+                            return `<div class="relative pl-6 pb-4 border-l-2 border-gray-300 last:border-0 last:pb-0 metro-step"><div class="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-gray-400"></div><div class="font-bold text-gray-700 text-sm">${step.line}</div><div class="flex justify-between text-xs text-gray-500"><span>${step.from} → ${step.to}</span><span class="bg-gray-100 px-1 rounded">${step.stops || ''}</span></div></div>`;
                         }).join('');
-                        
-                        extraContent = `
-                            <div class="mt-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                <div class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-wider">路线详情</div>
-                                ${stepsHtml}
-                            </div>
-                        `;
+                        extraContent = `<div class="mt-3 bg-gray-50 rounded-lg p-3 border border-gray-200"><div class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-wider">路线详情</div>${stepsHtml}</div>`;
                     }
 
                     item.innerHTML = `
-                        <div class="absolute left-0 top-0 w-10 h-10 rounded-full ${iconBg} flex items-center justify-center border-4 border-white z-10 shadow-sm text-lg">
-                            ${icon}
-                        </div>
+                        <div class="absolute left-0 top-0 w-10 h-10 rounded-full ${iconBg} flex items-center justify-center border-4 border-white z-10 shadow-sm text-lg">${icon}</div>
                         <div class="bg-white p-4 rounded-xl card-shadow">
-                            <div class="flex justify-between items-start mb-1">
-                                <h4 class="font-bold text-gray-800 text-base">${event.title}</h4>
-                                <span class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">${event.time}</span>
-                            </div>
+                            <div class="flex justify-between items-start mb-1"><h4 class="font-bold text-gray-800 text-base">${event.title}</h4><span class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">${event.time}</span></div>
                             <p class="text-sm text-gray-600 font-medium">${event.detail}</p>
                             ${event.duration ? `<p class="text-xs text-blue-500 mt-1 flex items-center">⏱️ ${event.duration}</p>` : ''}
                             ${event.sub ? `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-50">${event.sub}</p>` : ''}
@@ -505,6 +484,37 @@
             });
 
             container.appendChild(listContainer);
+
+            // 3. SCROLL SPY LISTENER
+            const wrapper = document.getElementById('app-wrapper');
+            
+            itineraryScrollListener = () => {
+                if (isScrollingByClick) return; // SKIP if locked
+
+                // Threshold: Sticky header height (~115px) + buffer
+                const headerOffset = 130; 
+                let activeId = null;
+
+                for (let i = 0; i < tripData.days.length; i++) {
+                    const day = tripData.days[i];
+                    const el = document.getElementById(`day-section-${day.id}`);
+                    if (el) {
+                        const rect = el.getBoundingClientRect();
+                        // Logic: Find the LAST element whose TOP is above or near the threshold line
+                        if (rect.top <= headerOffset + 50) {
+                            activeId = day.id;
+                        }
+                    }
+                }
+
+                if (activeId) {
+                    highlightActiveButton(activeId);
+                }
+            };
+
+            wrapper.addEventListener('scroll', itineraryScrollListener);
+            // Initial highlight
+            highlightActiveButton(1);
         }
 
         function renderPackingList(container) {
@@ -516,22 +526,13 @@
             tripData.packing.forEach(category => {
                 const section = document.createElement('div');
                 section.className = 'mb-6 bg-white rounded-xl p-4 card-shadow';
-                
-                const title = document.createElement('h3');
-                title.className = 'font-bold text-gray-800 mb-3 flex items-center';
-                title.innerHTML = `<span class="w-2 h-6 bg-red-500 rounded-full mr-3"></span>${category.cat}`;
-                section.appendChild(title);
-
+                section.innerHTML = `<h3 class="font-bold text-gray-800 mb-3 flex items-center"><span class="w-2 h-6 bg-red-500 rounded-full mr-3"></span>${category.cat}</h3>`;
                 const list = document.createElement('ul');
                 category.items.forEach((item, idx) => {
                     const li = document.createElement('li');
                     li.className = 'flex items-center py-2 border-b border-gray-50 last:border-0';
                     const id = `item-${category.cat}-${idx}`;
-                    // Simple local state logic could be added here
-                    li.innerHTML = `
-                        <input type="checkbox" id="${id}" class="w-5 h-5 rounded border-gray-300 text-red-500 focus:ring-red-500 mr-3 cursor-pointer">
-                        <label for="${id}" class="text-sm text-gray-600 cursor-pointer select-none flex-1">${item}</label>
-                    `;
+                    li.innerHTML = `<input type="checkbox" id="${id}" class="w-5 h-5 rounded border-gray-300 text-red-500 focus:ring-red-500 mr-3 cursor-pointer"><label for="${id}" class="text-sm text-gray-600 cursor-pointer select-none flex-1">${item}</label>`;
                     list.appendChild(li);
                 });
                 section.appendChild(list);
@@ -539,17 +540,11 @@
             });
         }
 
-        // --- Init ---
-        // Ensure scripts are loaded before rendering
         window.onload = function() {
             renderContent();
-            // Initial metric calculation
             updateLayoutMetrics();
-            
-            // Add resize listener to keep metrics updated
             window.addEventListener('resize', updateLayoutMetrics);
         };
-
     </script>
 </body>
 </html>
