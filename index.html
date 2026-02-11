@@ -23,8 +23,6 @@
         /* CHANGED: Increased font-weight from 600 to 700 (bold) for active tab */
         .active-tab { border-bottom: 2px solid #ef4444; color: #ef4444; font-weight: 700; }
         .inactive-tab { color: #6b7280; }
-        .metro-step::after { content: ''; position: absolute; left: 50%; bottom: -1rem; transform: translateX(-50%); width: 2px; height: 1rem; background-color: #9ca3af; }
-        .metro-step:last-child::after { display: none; }
         
         /* Global Smooth Scroll on the scroll container */
         #app-wrapper { scroll-behavior: smooth; }
@@ -41,8 +39,10 @@
     <!-- Application Structure Plan: 
          1. Dashboard: Overview stats.
          2. Itinerary: UPDATED.
-            FIXED: Added DEBUG PANEL variable switch.
-            Includes logic to mock current time for "Trip Started" / "Trip Ended" visualizations.
+            FIXED: Route Details Styling.
+            - Aligned dots and lines perfectly.
+            - Removed unnecessary right-side lines.
+            - Centered emoji icons.
          3. Packing: Checklist. Updated to remove Driver's License.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
@@ -156,7 +156,7 @@
                             type: "activity", 
                             title: "泡泡玛特城市乐园", 
                             detail: "朝阳公园西3门", 
-                            sub: "必玩：MOLLY城堡心愿之旅。必逛：城堡商店买限定盲盒。" 
+                            sub: "必玩：MOLLY 城堡心愿之旅。必逛：城堡商店 Shopping～。" 
                         },
                         { 
                             time: "13:30", 
@@ -167,7 +167,7 @@
                         },
                         { time: "14:30", type: "hotel", title: "取行李 & 外卖", detail: "回到酒店拿装备和烤鸭" },
                         { 
-                            time: "15:10", 
+                            time: "15:00", 
                             type: "metro", 
                             title: "极限转场：去清河站", 
                             detail: "威斯汀 -> 清河站", 
@@ -591,7 +591,7 @@
                 daySection.className = 'mb-12 relative day-anchor'; 
 
                 const header = document.createElement('div');
-                header.className = 'mb-6 px-2 flex items-center';
+                header.className = 'mb-6 flex items-center';
                 header.innerHTML = `
                     <div class="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">${day.id}</div>
                     <div class="ml-4"><h2 class="text-xl font-bold text-gray-800">${day.date}</h2><p class="text-xs text-gray-500 mt-0.5">${day.title}</p></div>
@@ -606,7 +606,7 @@
 
                 day.events.forEach(event => {
                     const item = document.createElement('div');
-                    item.className = 'relative mb-8 pl-8';
+                    item.className = 'relative mb-4 pl-8';
                     
                     let icon = '📍';
                     let iconBg = 'bg-gray-100';
@@ -618,15 +618,35 @@
 
                     let extraContent = '';
                     if (event.route) {
-                        const stepsHtml = event.route.map(step => {
-                            if (step.line === '步行') return `<div class="flex items-center text-xs text-gray-500 mt-2"><span class="mr-2">🚶</span> ${step.info}</div>`;
-                            return `<div class="relative pl-6 pb-4 border-l-2 border-gray-300 last:border-0 last:pb-0 metro-step"><div class="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-gray-400"></div><div class="font-bold text-gray-700 text-sm">${step.line}</div><div class="flex justify-between text-xs text-gray-500"><span>${step.from} → ${step.to}</span><span class="bg-gray-100 px-1 rounded">${step.stops || ''}</span></div></div>`;
+                        const stepsHtml = event.route.map((step, idx) => {
+                            const isLast = idx === event.route.length - 1;
+                            
+                            if (step.line === '步行') {
+                                // Walking step
+                                return `
+                                <div class="relative pl-6 ${isLast ? '' : 'pb-4 border-l-2 border-gray-300'}">
+                                    <div class="absolute top-0 -left-[9px] w-5 h-5 flex items-center justify-center bg-[#f9fafb]">
+                                        <span class="text-sm">🚶</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 pt-0.5">${step.info}</div>
+                                </div>`;
+                            }
+                            // Metro step
+                            return `
+                            <div class="relative pl-6 pb-3 ${isLast ? '' : 'border-l-2 border-gray-300'}">
+                                <div class="absolute top-0 -left-[6px] w-2.5 h-2.5 rounded-full bg-gray-400 ring-4 ring-gray-50"></div>
+                                <div class="font-bold text-gray-700 text-sm">${step.line}</div>
+                                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>${step.from} → ${step.to}</span>
+                                    <span class="bg-gray-100 px-1 rounded ml-2">${step.stops || ''}</span>
+                                </div>
+                            </div>`;
                         }).join('');
                         extraContent = `<div class="mt-3 bg-gray-50 rounded-lg p-3 border border-gray-200"><div class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-wider">路线详情</div>${stepsHtml}</div>`;
                     }
 
                     item.innerHTML = `
-                        <div class="absolute left-0 top-0 w-10 h-10 rounded-full ${iconBg} flex items-center justify-center border-4 border-white z-10 shadow-sm text-lg">${icon}</div>
+                        <div class="absolute -left-[15px] top-0 w-10 h-10 rounded-full ${iconBg} flex items-center justify-center border-4 border-white z-10 shadow-sm text-lg">${icon}</div>
                         <div class="bg-white p-4 rounded-xl card-shadow">
                             <div class="flex justify-between items-start mb-1"><h4 class="font-bold text-gray-800 text-base">${event.title}</h4><span class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">${event.time}</span></div>
                             <p class="text-sm text-gray-600 font-medium">${event.detail}</p>
