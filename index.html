@@ -41,10 +41,8 @@
     <!-- Application Structure Plan: 
          1. Dashboard: Overview stats.
          2. Itinerary: UPDATED.
-            FIXED: Footer visibility issues.
-            - Changed h-screen to h-[100dvh] for mobile browser compatibility.
-            - Darkened footer text color.
-            - Added z-index to footer.
+            FIXED: Added DEBUG PANEL for testing time states.
+            Includes logic to mock current time for "Trip Started" / "Trip Ended" visualizations.
          3. Packing: Checklist. Updated to remove Driver's License.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
@@ -89,10 +87,18 @@
         </main>
 
         <!-- Footer -->
-        <!-- CHANGED: Darkened text color (text-gray-300 -> text-gray-500), added z-index relative -->
         <footer class="p-6 text-center text-xs text-gray-500 bg-gray-50 border-t border-gray-100 shrink-0 relative z-10">
             Design for Mobile View • Spring Festival 2026
         </footer>
+    </div>
+
+    <!-- DEBUG PANEL (For Testing) -->
+    <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 bg-white/90 backdrop-blur border border-gray-200 p-2 rounded-lg shadow-lg text-xs">
+        <div class="font-bold text-gray-400 uppercase tracking-widest text-[10px] text-center mb-1">🛠️ 调试模式</div>
+        <button onclick="setSimulatedTime(null)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors">🕒 实时 (重置)</button>
+        <button onclick="setSimulatedTime('2026-02-19T15:00:00')" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded transition-colors">🚄 Day 1 (途中)</button>
+        <button onclick="setSimulatedTime('2026-02-20T11:00:00')" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded transition-colors">🎡 Day 2 (乐园)</button>
+        <button onclick="setSimulatedTime('2026-02-23T10:00:00')" class="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-600 rounded transition-colors">🏁 旅程结束</button>
     </div>
 
     <!-- JavaScript Logic -->
@@ -106,6 +112,7 @@
                 {
                     id: 1,
                     date: "2月19日 初三",
+                    dateStr: "2026-02-19",
                     title: "抵京 & 威斯汀度假",
                     highlight: "高铁前往北京，入住东三环，享受老北京铜锅涮肉。",
                     events: [
@@ -135,6 +142,7 @@
                 {
                     id: 2,
                     date: "2月20日 初四",
+                    dateStr: "2026-02-20",
                     title: "泡泡玛特 & 奔赴雪场",
                     highlight: "打卡Pop Land，全聚德外卖策略，高铁前往崇礼。",
                     events: [
@@ -172,6 +180,7 @@
                 {
                     id: 3,
                     date: "2月21日 初五",
+                    dateStr: "2026-02-21",
                     title: "全天滑雪 & 回京",
                     highlight: "太舞畅滑一天，晚上回京入住南锣鼓巷，感受胡同夜生活。",
                     events: [
@@ -196,6 +205,7 @@
                 {
                     id: 4,
                     date: "2月22日 初六",
+                    dateStr: "2026-02-22",
                     title: "京味Citywalk & 返程",
                     highlight: "地道豆汁儿焦圈，漫步什刹海胡同，打卡中轴线。",
                     events: [
@@ -238,6 +248,19 @@
         let isScrollingByClick = false; // LOCK Flag
         let scrollTimeout = null;
         let itineraryScrollListener = null;
+        let timerInterval = null; 
+        
+        // --- TEST STATE ---
+        let simulatedDate = null; // null = real time
+
+        // --- Trip Start Constants ---
+        const TRIP_START_DATE = new Date("2026-02-19T13:18:00");
+
+        // --- Helper: Parse Time String ---
+        function parseEventDate(dateStr, timeStr) {
+            const startTime = timeStr.split('-')[0].trim().split(' ')[0]; 
+            return new Date(`${dateStr}T${startTime}:00`);
+        }
 
         // --- Helper: Update Dynamic Heights ---
         function updateLayoutMetrics() {
@@ -251,7 +274,6 @@
                 if (subNav && !subNav.classList.contains('hidden')) {
                     subNavHeight = subNav.offsetHeight;
                 }
-                // Calculate total offset for scroll-margin-top
                 const totalOffset = navHeight + subNavHeight + 10; 
                 document.documentElement.style.setProperty('--scroll-offset', `${totalOffset}px`);
             }
@@ -265,8 +287,23 @@
             const activeBtn = document.getElementById(`btn-day-${activeId}`);
             if (activeBtn) {
                 activeBtn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-red-500 text-white border-red-500 shadow-md transform scale-105`;
-                // Ensure the active button is visible in horizontal scroll
                 activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }
+
+        // --- Debug Helper ---
+        function setSimulatedTime(timeStr) {
+            if (timeStr) {
+                simulatedDate = new Date(timeStr);
+            } else {
+                simulatedDate = null;
+            }
+            // If in Dashboard, force update immediately
+            if (currentTab === 'dashboard') {
+                startDashboardTimer();
+            } else {
+                // Switch to dashboard to see effect
+                switchTab('dashboard');
             }
         }
 
@@ -277,13 +314,15 @@
             const subNav = document.getElementById('sub-nav-container');
             const wrapper = document.getElementById('app-wrapper');
 
-            // Cleanup old listener
             if (itineraryScrollListener) {
                 wrapper.removeEventListener('scroll', itineraryScrollListener);
                 itineraryScrollListener = null;
             }
+            if (timerInterval && tab !== 'dashboard') {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
 
-            // Update Tab UI
             ['dashboard', 'itinerary', 'packing'].forEach(t => {
                 const btn = document.getElementById(`tab-${t}`);
                 if (t === tab) {
@@ -295,7 +334,6 @@
                 }
             });
 
-            // Toggle Sub Nav
             if (tab === 'itinerary') {
                 subNav.classList.remove('hidden');
             } else {
@@ -323,25 +361,11 @@
 
         function renderDashboard(container) {
             const intro = document.createElement('div');
+            intro.id = 'dashboard-timer-container';
             intro.className = 'mb-6';
             intro.innerHTML = `
                 <div class="bg-gradient-to-r from-red-500 to-orange-400 rounded-2xl p-6 text-white shadow-lg mb-6">
-                    <h3 class="font-bold text-lg mb-2">🎉 距离出发还有...</h3>
-                    <p class="text-sm opacity-90 mb-4">准备好迎接滑雪和烤鸭了吗？</p>
-                    <div class="flex gap-4 text-center">
-                        <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
-                            <span class="block text-2xl font-bold">19</span>
-                            <span class="text-xs opacity-80">2月</span>
-                        </div>
-                        <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
-                            <span class="block text-2xl font-bold">北京</span>
-                            <span class="text-xs opacity-80">目的地</span>
-                        </div>
-                        <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
-                            <span class="block text-2xl font-bold">崇礼</span>
-                            <span class="text-xs opacity-80">滑雪</span>
-                        </div>
-                    </div>
+                    <h3 class="font-bold text-lg mb-2">🎉 正在加载行程信息...</h3>
                 </div>
             `;
             container.appendChild(intro);
@@ -371,6 +395,8 @@
             `;
             container.appendChild(reminders);
 
+            startDashboardTimer();
+
             setTimeout(() => {
                 const chartCanvas = document.getElementById('tripChart');
                 if (chartCanvas && typeof Chart !== 'undefined') {
@@ -391,6 +417,129 @@
             }, 0);
         }
 
+        // --- NEW: Dashboard Live Timer Logic ---
+        function startDashboardTimer() {
+            const updateStatus = () => {
+                const container = document.getElementById('dashboard-timer-container');
+                if (!container) return;
+
+                // USE SIMULATED DATE IF SET, ELSE REAL DATE
+                const now = simulatedDate || new Date();
+                const diff = TRIP_START_DATE - now;
+
+                if (diff > 0) {
+                    // --- CASE 1: COUNTDOWN MODE ---
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    container.innerHTML = `
+                        <div class="bg-gradient-to-r from-red-500 to-orange-400 rounded-2xl p-6 text-white shadow-lg mb-6">
+                            <h3 class="font-bold text-lg mb-2">🎉 距离出发还有...</h3>
+                            <p class="text-sm opacity-90 mb-4">准备好迎接滑雪和烤鸭了吗？</p>
+                            <div class="flex gap-2 text-center">
+                                <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
+                                    <span class="block text-2xl font-bold font-mono">${days}</span>
+                                    <span class="text-xs opacity-80">天</span>
+                                </div>
+                                <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
+                                    <span class="block text-2xl font-bold font-mono">${hours}</span>
+                                    <span class="text-xs opacity-80">时</span>
+                                </div>
+                                <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
+                                    <span class="block text-2xl font-bold font-mono">${minutes}</span>
+                                    <span class="text-xs opacity-80">分</span>
+                                </div>
+                                <div class="bg-white/20 rounded-lg p-2 flex-1 backdrop-blur-sm">
+                                    <span class="block text-2xl font-bold font-mono">${seconds}</span>
+                                    <span class="text-xs opacity-80">秒</span>
+                                </div>
+                            </div>
+                            ${simulatedDate ? '<div class="mt-2 text-[10px] text-center bg-black/20 rounded py-1">⚠️ 调试模式: ' + now.toLocaleString() + '</div>' : ''}
+                        </div>
+                    `;
+                } else {
+                    // --- CASE 2: LIVE ITINERARY MODE ---
+                    let allEvents = [];
+                    tripData.days.forEach(day => {
+                        day.events.forEach(evt => {
+                            allEvents.push({
+                                ...evt,
+                                startObj: parseEventDate(day.dateStr, evt.time),
+                                dayTitle: day.date
+                            });
+                        });
+                    });
+
+                    allEvents.sort((a, b) => a.startObj - b.startObj);
+
+                    let currentEvent = null;
+                    let nextEvent = null;
+
+                    for (let i = 0; i < allEvents.length; i++) {
+                        if (allEvents[i].startObj <= now) {
+                            currentEvent = allEvents[i];
+                        } else {
+                            nextEvent = allEvents[i];
+                            break; 
+                        }
+                    }
+
+                    let statusHTML = '';
+                    
+                    if (!nextEvent && currentEvent) {
+                        statusHTML = `
+                            <div class="bg-gradient-to-r from-green-500 to-emerald-400 rounded-2xl p-6 text-white shadow-lg mb-6">
+                                <h3 class="font-bold text-xl mb-1">🏁 旅程圆满结束!</h3>
+                                <p class="text-sm opacity-90">希望这段记忆能温暖整个冬天。</p>
+                                ${simulatedDate ? '<div class="mt-2 text-[10px] bg-black/20 rounded py-1 px-2 inline-block">⚠️ 调试时间: ' + now.toLocaleString() + '</div>' : ''}
+                            </div>`;
+                    } else if (currentEvent || nextEvent) {
+                        const curTitle = currentEvent ? currentEvent.title : "行程即将开始";
+                        const curDetail = currentEvent ? currentEvent.detail : "请前往出发地";
+                        const curTime = currentEvent ? currentEvent.time : "--:--";
+                        const curDay = currentEvent ? currentEvent.dayTitle.split(' ')[0] : "";
+
+                        const nextTitle = nextEvent ? nextEvent.title : "暂无后续行程";
+                        const nextTime = nextEvent ? nextEvent.time : "";
+                        const nextDay = nextEvent ? nextEvent.dayTitle.split(' ')[0] : "";
+
+                        statusHTML = `
+                            <div class="bg-gradient-to-r from-red-500 to-orange-400 rounded-2xl p-6 text-white shadow-lg mb-6 relative overflow-hidden">
+                                <div class="relative z-10">
+                                    <div class="mb-4 pb-4 border-b border-white/20">
+                                        <p class="text-xs uppercase tracking-widest opacity-80 mb-1">正在进行 · ${curDay} ${curTime}</p>
+                                        <h3 class="font-bold text-2xl mb-1">${curTitle}</h3>
+                                        <p class="text-sm opacity-90">${curDetail}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs uppercase tracking-widest opacity-80 mb-1 flex items-center">
+                                            <span class="w-2 h-2 bg-yellow-300 rounded-full mr-2 animate-pulse"></span> 下一个行程
+                                        </p>
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <h4 class="font-bold text-lg">${nextTitle}</h4>
+                                                <p class="text-xs opacity-80">${nextDay} ${nextTime}</p>
+                                            </div>
+                                            <span class="text-2xl">👉</span>
+                                        </div>
+                                    </div>
+                                    ${simulatedDate ? '<div class="mt-4 text-[10px] bg-black/20 rounded py-1 px-2 inline-block">⚠️ 调试时间: ' + now.toLocaleString() + '</div>' : ''}
+                                </div>
+                                <div class="absolute -right-4 -bottom-8 text-9xl opacity-10">🏂</div>
+                            </div>
+                        `;
+                    }
+                    container.innerHTML = statusHTML;
+                }
+            };
+
+            updateStatus();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateStatus, 1000);
+        }
+
         function renderItinerary(container) {
             // 1. POPULATE STICKY SUB-NAV
             const subNav = document.getElementById('sub-nav-container');
@@ -405,19 +554,13 @@
                 btn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
                 btn.innerText = day.date.split(' ')[0];
 
-                // CLICK HANDLER WITH LOCK
                 btn.onclick = (e) => { 
-                    isScrollingByClick = true; // LOCK scroll spy
+                    isScrollingByClick = true; 
                     
                     const el = document.getElementById(`day-section-${day.id}`);
                     if(el) {
-                        // Immediately highlight clicked button
                         highlightActiveButton(day.id);
-                        
-                        // Scroll to element
                         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-                        // Release lock after animation finishes (approx 800-1000ms)
                         if(scrollTimeout) clearTimeout(scrollTimeout);
                         scrollTimeout = setTimeout(() => {
                             isScrollingByClick = false;
@@ -491,13 +634,11 @@
 
             container.appendChild(listContainer);
 
-            // 3. SCROLL SPY LISTENER
             const wrapper = document.getElementById('app-wrapper');
             
             itineraryScrollListener = () => {
-                if (isScrollingByClick) return; // SKIP if locked
+                if (isScrollingByClick) return; 
 
-                // Threshold: Sticky header height (~115px) + buffer
                 const headerOffset = 130; 
                 let activeId = null;
 
@@ -506,7 +647,6 @@
                     const el = document.getElementById(`day-section-${day.id}`);
                     if (el) {
                         const rect = el.getBoundingClientRect();
-                        // Logic: Find the LAST element whose TOP is above or near the threshold line
                         if (rect.top <= headerOffset + 50) {
                             activeId = day.id;
                         }
@@ -519,7 +659,6 @@
             };
 
             wrapper.addEventListener('scroll', itineraryScrollListener);
-            // Initial highlight
             highlightActiveButton(1);
         }
 
