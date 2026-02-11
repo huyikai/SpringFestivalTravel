@@ -41,7 +41,7 @@
     <!-- Application Structure Plan: 
          1. Dashboard: Overview stats.
          2. Itinerary: UPDATED.
-            FIXED: Added DEBUG PANEL for testing time states.
+            FIXED: Added DEBUG PANEL variable switch.
             Includes logic to mock current time for "Trip Started" / "Trip Ended" visualizations.
          3. Packing: Checklist. Updated to remove Driver's License.
     -->
@@ -93,7 +93,8 @@
     </div>
 
     <!-- DEBUG PANEL (For Testing) -->
-    <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 bg-white/90 backdrop-blur border border-gray-200 p-2 rounded-lg shadow-lg text-xs">
+    <!-- CHANGED: Added id="debug-panel" and "hidden" class by default -->
+    <div id="debug-panel" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 bg-white/90 backdrop-blur border border-gray-200 p-2 rounded-lg shadow-lg text-xs hidden">
         <div class="font-bold text-gray-400 uppercase tracking-widest text-[10px] text-center mb-1">🛠️ 调试模式</div>
         <button onclick="setSimulatedTime(null)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors">🕒 实时 (重置)</button>
         <button onclick="setSimulatedTime('2026-02-19T15:00:00')" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded transition-colors">🚄 Day 1 (途中)</button>
@@ -103,6 +104,9 @@
 
     <!-- JavaScript Logic -->
     <script>
+        // --- APP CONFIGURATION ---
+        const SHOW_DEBUG_PANEL = true; // ⚠️ 修改此处：true=显示调试面板, false=隐藏
+
         // --- Data Store ---
         const tripData = {
             overview: {
@@ -554,13 +558,19 @@
                 btn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
                 btn.innerText = day.date.split(' ')[0];
 
+                // CLICK HANDLER WITH LOCK
                 btn.onclick = (e) => { 
-                    isScrollingByClick = true; 
+                    isScrollingByClick = true; // LOCK scroll spy
                     
                     const el = document.getElementById(`day-section-${day.id}`);
                     if(el) {
+                        // Immediately highlight clicked button
                         highlightActiveButton(day.id);
+                        
+                        // Scroll to element
                         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                        // Release lock after animation finishes (approx 800-1000ms)
                         if(scrollTimeout) clearTimeout(scrollTimeout);
                         scrollTimeout = setTimeout(() => {
                             isScrollingByClick = false;
@@ -637,8 +647,9 @@
             const wrapper = document.getElementById('app-wrapper');
             
             itineraryScrollListener = () => {
-                if (isScrollingByClick) return; 
+                if (isScrollingByClick) return; // SKIP if locked
 
+                // Threshold: Sticky header height (~115px) + buffer
                 const headerOffset = 130; 
                 let activeId = null;
 
@@ -647,6 +658,7 @@
                     const el = document.getElementById(`day-section-${day.id}`);
                     if (el) {
                         const rect = el.getBoundingClientRect();
+                        // Logic: Find the LAST element whose TOP is above or near the threshold line
                         if (rect.top <= headerOffset + 50) {
                             activeId = day.id;
                         }
@@ -659,6 +671,7 @@
             };
 
             wrapper.addEventListener('scroll', itineraryScrollListener);
+            // Initial highlight
             highlightActiveButton(1);
         }
 
@@ -689,6 +702,12 @@
             renderContent();
             updateLayoutMetrics();
             window.addEventListener('resize', updateLayoutMetrics);
+
+            // Handle Debug Panel Visibility
+            if (SHOW_DEBUG_PANEL) {
+                const debugPanel = document.getElementById('debug-panel');
+                if (debugPanel) debugPanel.classList.remove('hidden');
+            }
         };
     </script>
 </body>
