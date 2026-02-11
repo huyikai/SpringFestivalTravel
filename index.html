@@ -74,7 +74,7 @@
         </nav>
         
         <!-- Sticky Sub-Nav Container -->
-        <div id="sub-nav-container" class="sticky z-30 bg-[#fdfbf7] py-2 px-4 shadow-sm transition-all hidden date-nav-sticky-style border-b border-gray-100">
+        <div id="sub-nav-container" class="sticky z-30 bg-[#fdfbf7] py-2 shadow-sm transition-all hidden date-nav-sticky-style border-b border-gray-100">
             <!-- Date buttons will be injected here -->
         </div>
 
@@ -391,7 +391,7 @@
             subNav.innerHTML = ''; 
 
             const dayNav = document.createElement('div');
-            dayNav.className = 'flex gap-3 overflow-x-auto hide-scrollbar';
+            dayNav.className = 'flex gap-3 overflow-x-auto hide-scrollbar px-3';
 
             tripData.days.forEach(day => {
                 const btn = document.createElement('button');
