@@ -593,7 +593,7 @@
                 daySection.className = 'mb-12 relative day-anchor'; 
 
                 const header = document.createElement('div');
-                header.className = 'mb-6 px-2 flex items-center';
+                header.className = 'mb-6 flex items-center';
                 header.innerHTML = `
                     <div class="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">${day.id}</div>
                     <div class="ml-4"><h2 class="text-xl font-bold text-gray-800">${day.date}</h2><p class="text-xs text-gray-500 mt-0.5">${day.title}</p></div>
@@ -653,7 +653,7 @@
                             <div class="flex justify-between items-start mb-1"><h4 class="font-bold text-gray-800 text-base">${event.title}</h4><span class="text-xm font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">${event.time}</span></div>
                             <p class="text-sm text-gray-600 font-medium">${event.detail}</p>
                             ${event.duration ? `<p class="text-xs text-blue-500 mt-1 flex items-center">⏱️ ${event.duration}</p>` : ''}
-                            ${event.sub ? `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-50">${event.sub}</p>` : ''}
+                            ${event.sub ? `<p class="text-xs text-gray-400 pt-2 border-t border-gray-50">${event.sub}</p>` : ''}
                             ${extraContent}
                         </div>
                     `;
