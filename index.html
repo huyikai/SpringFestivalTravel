@@ -23,6 +23,8 @@
         /* CHANGED: Increased font-weight from 600 to 700 (bold) for active tab */
         .active-tab { border-bottom: 2px solid #ef4444; color: #ef4444; font-weight: 700; }
         .inactive-tab { color: #6b7280; }
+        .metro-step::after { content: ''; position: absolute; left: 50%; bottom: -1rem; transform: translateX(-50%); width: 2px; height: 1rem; background-color: #9ca3af; }
+        .metro-step:last-child::after { display: none; }
         
         /* Global Smooth Scroll on the scroll container */
         #app-wrapper { scroll-behavior: smooth; }
@@ -40,9 +42,7 @@
          1. Dashboard: Overview stats.
          2. Itinerary: UPDATED.
             FIXED: Route Details Styling.
-            - Aligned dots and lines perfectly.
-            - Removed unnecessary right-side lines.
-            - Centered emoji icons.
+            - Added 'ml-2' to metro/walk steps to nudge the timeline slightly right.
          3. Packing: Checklist. Updated to remove Driver's License.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
@@ -70,13 +70,13 @@
 
         <!-- Navigation Tabs (App Level) -->
         <nav id="main-nav" class="sticky top-0 z-40 flex justify-around items-center bg-white border-b border-gray-100 shrink-0 shadow-sm transition-all">
-            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="flex-1 py-4 text-sm font-medium transition-colors active-tab">概览</button>
-            <button onclick="switchTab('itinerary')" id="tab-itinerary" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">行程</button>
-            <button onclick="switchTab('packing')" id="tab-packing" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab">清单</button>
+            <!-- CHANGED: Added focus:outline-none to remove browser default click highlight -->
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="flex-1 py-4 text-sm font-medium transition-colors active-tab focus:outline-none">概览</button>
+            <button onclick="switchTab('itinerary')" id="tab-itinerary" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab focus:outline-none">行程</button>
+            <button onclick="switchTab('packing')" id="tab-packing" class="flex-1 py-4 text-sm font-medium transition-colors inactive-tab focus:outline-none">清单</button>
         </nav>
         
         <!-- Sticky Sub-Nav Container -->
-        <!-- CHANGED: Removed px-4 as requested -->
         <div id="sub-nav-container" class="sticky z-30 bg-[#fdfbf7] py-2 shadow-sm transition-all hidden date-nav-sticky-style border-b border-gray-100">
             <!-- Date buttons will be injected here -->
         </div>
@@ -93,7 +93,6 @@
     </div>
 
     <!-- DEBUG PANEL (For Testing) -->
-    <!-- CHANGED: Added id="debug-panel" and "hidden" class by default -->
     <div id="debug-panel" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 bg-white/90 backdrop-blur border border-gray-200 p-2 rounded-lg shadow-lg text-xs hidden">
         <div class="font-bold text-gray-400 uppercase tracking-widest text-[10px] text-center mb-1">🛠️ 调试模式</div>
         <button onclick="setSimulatedTime(null)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors">🕒 实时 (重置)</button>
@@ -120,7 +119,7 @@
                     title: "抵京 & 威斯汀度假",
                     highlight: "高铁前往北京，入住东三环，享受老北京铜锅涮肉。",
                     events: [
-                        { time: "13:18", type: "transport", title: "高铁 G72", detail: "青岛北 -> 北京南", sub: "02车 14D/14F (3小时3分)" },
+                        { time: "13:18", type: "transport", title: "高铁 G72", detail: "青岛北 -> 北京南", sub: "02车 14D/14F 13:18-16:21 3小时3分" },
                         { 
                             time: "16:30", 
                             type: "metro", 
@@ -177,7 +176,7 @@
                                 { line: "昌平线", from: "西土城", to: "清河站", stops: "6站" }
                             ]
                         },
-                        { time: "16:39", type: "transport", title: "高铁 D9277", detail: "清河 -> 太子城", sub: "08车 04DF。车上吃烤鸭🦆" },
+                        { time: "16:39", type: "transport", title: "高铁 D9277", detail: "清河 -> 太子城", sub: "08车 04DF 16:39 - 17:46 ｜ 车上吃烤鸭🦆" },
                         { time: "18:00", type: "hotel", title: "入住太舞南山里", detail: "崇礼太舞滑雪小镇", sub: "坐免费接驳车进小镇。确认含早/雪票。" }
                     ]
                 },
@@ -286,11 +285,13 @@
         // --- Helper: Highlight Active Button ---
         function highlightActiveButton(activeId) {
             document.querySelectorAll('[id^="btn-day-"]').forEach(b => {
-                b.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
+                // CHANGED: Added focus:outline-none
+                b.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95 focus:outline-none`;
             });
             const activeBtn = document.getElementById(`btn-day-${activeId}`);
             if (activeBtn) {
-                activeBtn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-red-500 text-white border-red-500 shadow-md transform scale-105`;
+                // CHANGED: Added focus:outline-none
+                activeBtn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-red-500 text-white border-red-500 shadow-md transform scale-105 focus:outline-none`;
                 activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             }
         }
@@ -555,7 +556,8 @@
             tripData.days.forEach(day => {
                 const btn = document.createElement('button');
                 btn.id = `btn-day-${day.id}`;
-                btn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95`;
+                // CHANGED: Added focus:outline-none
+                btn.className = `flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-600 border border-gray-200 shadow-sm hover:text-red-500 hover:border-red-300 active:scale-95 focus:outline-none`;
                 btn.innerText = day.date.split(' ')[0];
 
                 // CLICK HANDLER WITH LOCK
@@ -591,7 +593,7 @@
                 daySection.className = 'mb-12 relative day-anchor'; 
 
                 const header = document.createElement('div');
-                header.className = 'mb-6 flex items-center';
+                header.className = 'mb-6 px-2 flex items-center';
                 header.innerHTML = `
                     <div class="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">${day.id}</div>
                     <div class="ml-4"><h2 class="text-xl font-bold text-gray-800">${day.date}</h2><p class="text-xs text-gray-500 mt-0.5">${day.title}</p></div>
@@ -606,7 +608,7 @@
 
                 day.events.forEach(event => {
                     const item = document.createElement('div');
-                    item.className = 'relative mb-4 pl-8';
+                    item.className = 'relative mb-8 pl-8';
                     
                     let icon = '📍';
                     let iconBg = 'bg-gray-100';
@@ -624,7 +626,7 @@
                             if (step.line === '步行') {
                                 // Walking step
                                 return `
-                                <div class="relative pl-6 ${isLast ? '' : 'pb-4 border-l-2 border-gray-300'}">
+                                <div class="relative ml-2 pl-6 ${isLast ? '' : 'pb-4 border-l-2 border-gray-300'}">
                                     <div class="absolute top-0 -left-[9px] w-5 h-5 flex items-center justify-center bg-[#f9fafb]">
                                         <span class="text-sm">🚶</span>
                                     </div>
@@ -633,8 +635,8 @@
                             }
                             // Metro step
                             return `
-                            <div class="relative pl-6 pb-3 ${isLast ? '' : 'border-l-2 border-gray-300'}">
-                                <div class="absolute top-0 -left-[6px] w-2.5 h-2.5 rounded-full bg-gray-400 ring-4 ring-gray-50"></div>
+                            <div class="relative ml-2 pl-6 pb-3 ${isLast ? 'border-l-2 border-transparent' : 'border-l-2 border-gray-300'}">
+                                <div class="absolute top-[4px] -left-[6px] w-2.5 h-2.5 rounded-full bg-gray-400 ring-4 ring-gray-50"></div>
                                 <div class="font-bold text-gray-700 text-sm">${step.line}</div>
                                 <div class="flex justify-between text-xs text-gray-500 mt-1">
                                     <span>${step.from} → ${step.to}</span>
@@ -648,7 +650,7 @@
                     item.innerHTML = `
                         <div class="absolute -left-[15px] top-0 w-10 h-10 rounded-full ${iconBg} flex items-center justify-center border-4 border-white z-10 shadow-sm text-lg">${icon}</div>
                         <div class="bg-white p-4 rounded-xl card-shadow">
-                            <div class="flex justify-between items-start mb-1"><h4 class="font-bold text-gray-800 text-base">${event.title}</h4><span class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">${event.time}</span></div>
+                            <div class="flex justify-between items-start mb-1"><h4 class="font-bold text-gray-800 text-base">${event.title}</h4><span class="text-xm font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">${event.time}</span></div>
                             <p class="text-sm text-gray-600 font-medium">${event.detail}</p>
                             ${event.duration ? `<p class="text-xs text-blue-500 mt-1 flex items-center">⏱️ ${event.duration}</p>` : ''}
                             ${event.sub ? `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-50">${event.sub}</p>` : ''}
