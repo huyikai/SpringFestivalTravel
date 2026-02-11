@@ -41,8 +41,10 @@
     <!-- Application Structure Plan: 
          1. Dashboard: Overview stats.
          2. Itinerary: UPDATED.
-            FIXED: "Click vs Scroll" Conflict.
-            Added a robust "isScrollingByClick" lock to prevent Scroll Spy from interfering during click navigation.
+            FIXED: Footer visibility issues.
+            - Changed h-screen to h-[100dvh] for mobile browser compatibility.
+            - Darkened footer text color.
+            - Added z-index to footer.
          3. Packing: Checklist. Updated to remove Driver's License.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
@@ -50,10 +52,10 @@
 <body class="flex flex-col min-h-screen bg-gray-100">
 
     <!-- Mobile-First Layout Container -->
-    <div id="app-wrapper" class="w-full max-w-md mx-auto bg-white shadow-xl h-screen flex flex-col relative overflow-y-auto hide-scrollbar">
+    <!-- CHANGED: h-screen to h-[100dvh] to fix mobile browser bottom clipping -->
+    <div id="app-wrapper" class="w-full max-w-md mx-auto bg-white shadow-xl h-[100dvh] flex flex-col relative overflow-y-auto hide-scrollbar">
         
         <!-- Header (Scrolls away) -->
-        <!-- CHANGED: Made gradient slightly deeper (red-100/orange-100) per request -->
         <header class="bg-gradient-to-r from-red-100 to-orange-100 p-6 pt-10 shadow-sm z-10 shrink-0">
             <div class="flex justify-between items-start">
                 <div>
@@ -76,18 +78,19 @@
         </nav>
         
         <!-- Sticky Sub-Nav Container -->
-        <div id="sub-nav-container" class="sticky z-30 bg-[#fdfbf7] py-2 px-4 shadow-sm transition-all hidden date-nav-sticky-style border-b border-gray-100">
+        <!-- CHANGED: Removed px-4 as requested -->
+        <div id="sub-nav-container" class="sticky z-30 bg-[#fdfbf7] py-2 shadow-sm transition-all hidden date-nav-sticky-style border-b border-gray-100">
             <!-- Date buttons will be injected here -->
         </div>
 
         <!-- Main Content Area -->
-        <!-- CHANGED: Removed min-h-screen and reduced pb-24 to pb-8 to fix footer position issue -->
         <main id="app-content" class="flex-grow p-4 pb-8 bg-[#fdfbf7]">
             <!-- Dynamic Content Injected Here -->
         </main>
 
         <!-- Footer -->
-        <footer class="p-4 text-center text-xs text-gray-300 bg-gray-50 border-t border-gray-100 shrink-0">
+        <!-- CHANGED: Darkened text color (text-gray-300 -> text-gray-500), added z-index relative -->
+        <footer class="p-6 text-center text-xs text-gray-500 bg-gray-50 border-t border-gray-100 shrink-0 relative z-10">
             Design for Mobile View • Spring Festival 2026
         </footer>
     </div>
@@ -223,7 +226,7 @@
             ],
             packing: [
                 { cat: "证件", items: ["身份证 (必须带!)"] },
-                { cat: "滑雪装备", items: ["速干衣/裤", "滑雪袜", "防水手套", "护脸/面罩", "雪镜", "头盔", "内护"] },
+                { cat: "滑雪装备", items: ["速干衣/裤 (贴身)", "滑雪袜 (厚毛巾袜)", "防水手套", "护脸/面罩", "雪镜 (可选)", "头盔 (建议自带或租)", "内护(护臀/护膝)"] },
                 { cat: "衣物", items: ["泳衣/泳帽 (威斯汀)", "换洗内衣裤", "保暖外套", "舒适走路鞋"] },
                 { cat: "电子", items: ["充电宝 (乐园/低温费电)", "充电器", "耳机","osmo pocket"] },
                 { cat: "个护", items: ["高保湿面霜 (北京极干)", "润唇膏", "防晒霜 (雪场紫外线强)", "面膜"] }
