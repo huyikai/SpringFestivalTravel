@@ -88,7 +88,7 @@
 
         <!-- Footer -->
         <footer class="p-6 text-center text-xs text-gray-500 bg-gray-50 border-t border-gray-100 shrink-0 relative z-10">
-            Design for Mobile View • Spring Festival 2026
+            design by huyikai • Spring Festival 2026
         </footer>
     </div>
 
@@ -187,7 +187,7 @@
                     title: "全天滑雪 & 回京",
                     highlight: "太舞畅滑一天，晚上回京入住南锣鼓巷，感受胡同夜生活。",
                     events: [
-                        { time: "09:00", type: "activity", title: "太舞滑雪时光", detail: "全天滑雪", sub: "租雪具 -> 换装备 -> 开滑！午餐不吃，专心滑雪。" },
+                        { time: "09:00", type: "activity", title: "太舞滑雪时光", detail: "全天滑雪", sub: "租雪具 -> 换装备 -> 开滑！先9索 初级道适应，然后4索滑莎萨道。午餐不吃，专心滑雪。" },
                         { time: "16:30", type: "transport", title: "前往火车站", detail: "坐接驳车去太子城站", sub: "预留充足时间退房/还雪具" },
                         { time: "18:10", type: "transport", title: "高铁 D9278", detail: "太子城 -> 清河", sub: "08车 05DF" },
                         { 
@@ -608,7 +608,7 @@
 
                 day.events.forEach(event => {
                     const item = document.createElement('div');
-                    item.className = 'relative mb-8 pl-8';
+                    item.className = 'relative mb-4 pl-8'; // 改动：mb-8 修改为 mb-4，缩小卡片间距
                     
                     let icon = '📍';
                     let iconBg = 'bg-gray-100';
